@@ -47,7 +47,18 @@ func parseFile(source string) (*model.Package, error) {
 		return nil, fmt.Errorf("failed getting source directory: %v", err)
 	}
 
-	cfg := &packages.Config{Mode: packages.LoadSyntax, Tests: true}
+	cfg := &packages.Config{
+		Mode:  packages.LoadSyntax,
+		Tests: false,
+		ParseFile: func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
+			// Ignore test files #325.
+			if strings.HasSuffix(filename, "_test.go") {
+				return &ast.File{}, nil
+			}
+			const mode = parser.AllErrors | parser.ParseComments
+			return parser.ParseFile(fset, filename, src, mode)
+		},
+	}
 	pkgs, err := packages.Load(cfg, "file="+source)
 	if err != nil {
 		return nil, err
